@@ -1,0 +1,9 @@
+pip install requests
+pip install pytest
+pip install json
+pip install jsonpath
+pip install openpyxl
+pip install Django
+pip install allure-pytest
+pip install PyMySQL
+pip install names
