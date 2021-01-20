@@ -1,0 +1,18 @@
+ {
+         "url": "http://test5.boast.net:8080/",
+        "status_name": "Active",
+        "admin_name": "adiAdmin",
+        "primary_advisor": 5,
+        "primary_advisor_name": "adiTech",
+        "secondary_advisor": null,
+        "secondary_advisor_name": null,
+        "business_dev": 3,
+        "business_dev_name": "adiBD",
+        "name": "test5",
+        "db_name": "test5",
+        "domain": "test5",
+        "manager": false,
+        "provisioned": true,
+        "status": "ACTIVE",
+        "admin": 2
+    }

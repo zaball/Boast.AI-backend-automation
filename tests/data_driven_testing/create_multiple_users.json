@@ -1,0 +1,22 @@
+{
+      "first_name": "Multiple",
+      "last_name": "User",
+      "username": "Post  Multiple User 1",
+      "email": "test_multiple_user_01@gmail.com",
+      "is_active": true,
+      "roles": [
+          "tenant_user"
+      ],
+      "manager": null,
+      "nick_name": "Unknown User",
+      "display_name": "Unknown User",
+      "manager_name": null,
+      "img": "https://lh4.googleusercontent.com/-loz8uJKrlNA/AAAAAAAAAAI/AAAAAAAAAAA/AMZuuckJ7fDKGIg5n6TfX0ldvAzuGHiJcA/s96-c/photo.jpg",
+      "calendar_url": null,
+      "mfa_enabled": false,
+      "phone": "+40 773 801 584",
+      "last_login": "2021-01-06T15:27:11.354888Z",
+      "is_superuser": false,
+      "is_staff": false,
+      "date_joined": "2020-09-02T10:58:34.839407Z"
+  }

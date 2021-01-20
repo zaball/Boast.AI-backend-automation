@@ -1,0 +1,1 @@
+[32mINFO    [0m root:test_healthcheck.py:6 Just running health check 1
