@@ -1,5 +1,6 @@
 from boast_api_test.src.Utilities.genericUtilities import generate_random_email_and_password
 from boast_api_test.src.Utilities.requestsUtility import RequestUtility
+import pdb
 
 
 class CreateUserHelper(object):
@@ -23,5 +24,6 @@ class CreateUserHelper(object):
         create_user_json = self.requests_utility.post('api/users/user/', payload=payload,
                                                       expected_status_code=201)
         return create_user_json
+
 
 
