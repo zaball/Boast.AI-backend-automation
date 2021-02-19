@@ -42,7 +42,7 @@ def my_setup():
     return {'id': 20, 'name': 'Adrian'}
 
 
-@pytest.mark.smoke
+# @pytest.mark.smoke
 @pytest.mark.ll
 def test_login_valid_user(my_setup):
     print("")

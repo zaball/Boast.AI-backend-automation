@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>users.html</h1>
+    <p>Report generated on 01-Feb-2021 at 15:13:50 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.10.0", "pytest": "6.2.1"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Linux-5.8.0-41-generic-x86_64-with-glibc2.32</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"allure-pytest": "2.8.31", "html": "3.1.1", "metadata": "1.11.0"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.8.6</td></tr></table>
+    <h2>Summary</h2>
+    <p>3 tests ran in 1.23 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">3 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_users/test_create_user_smoke.py::test_create_user</td>
+          <td class="col-duration">0.63</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_create_user_smoke.py:13 Test: Create new user in badger with email and password
+DEBUG    root:genericUtilities.py:7 Generating random email and password: 
+DEBUG    root:genericUtilities.py:23 Randomly generated email and password: {&#x27;email&#x27;: &#x27;testuser_dclipmmhcw@boastcapital.com&#x27;, &#x27;password&#x27;: &#x27;jrJoymYENyqRqkkfwqrw&#x27;}
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;POST /api/users/user/ HTTP/1.1&quot; 201 466
+DEBUG    root:requestsUtility.py:38 POST API response: {&#x27;id&#x27;: 61, &#x27;first_name&#x27;: &#x27;First User&#x27;, &#x27;last_name&#x27;: &#x27;Last&#x27;, &#x27;username&#x27;: &#x27;testuser_dclipmmhcw@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;testuser_dclipmmhcw@boastcapital.com&#x27;, &#x27;is_active&#x27;: False, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;nickname&#x27;, &#x27;display_name&#x27;: &#x27;nickname&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: &#x27;http://badger.boast.net:8080&#x27;, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-02-01T13:13:49.457527Z&#x27;}
+DEBUG    root:db_utility.py:21 Executing SELECT * FROM badger.account_emailaddress AS mail INNER JOIN badger.users_profile AS user ON mail.user_id = user.user_id WHERE email = &#x27;testuser_dclipmmhcw@boastcapital.com&#x27;;<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_users/test_create_user_smoke.py::test_create_user_fail_for_existing_email</td>
+          <td class="col-duration">0.08</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>DEBUG    root:db_utility.py:21 Executing SELECT * FROM badger.account_emailaddress AS mail INNER JOIN badger.users_profile AS user ON mail.user_id = user.user_id;
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;POST /api/users/user/ HTTP/1.1&quot; 400 40
+DEBUG    root:requestsUtility.py:38 POST API response: {&#x27;email&#x27;: [&#x27;This field must be unique.&#x27;]}<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_users/test_get_users_smoke.py::test_get_all_users</td>
+          <td class="col-duration">0.09</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;GET /api/users/user/ HTTP/1.1&quot; 200 5249
+DEBUG    root:requestsUtility.py:56 GET API response: [{&#x27;id&#x27;: 2, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrian.abonei.boast@gmail.com&#x27;, &#x27;email&#x27;: &#x27;adrian.abonei.boast@gmail.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;boast_admin&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;display_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: &#x27;https://lh4.googleusercontent.com/-loz8uJKrlNA/AAAAAAAAAAI/AAAAAAAAAAA/AMZuuckJ7fDKGIg5n6TfX0ldvAzuGHiJcA/s96-c/photo.jpg&#x27;, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: &#x27;+40 773 801 584&#x27;, &#x27;last_login&#x27;: &#x27;2021-01-26T18:09:13.059165Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T10:58:34.839407Z&#x27;}, {&#x27;id&#x27;: 3, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;aabonei@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;aabonei@boastcapital.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;boast_bd&#x27;, &#x27;boast_ar&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;adiBD&#x27;, &#x27;display_name&#x27;: &#x27;adiBD&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: &#x27;https://lh3.googleusercontent.com/a-/AOh14Ghyo3uPV-sBri33az1aFcHHlKBt9wwohfs1I1yV=s96-c&#x27;, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: &#x27;+40 773 801 584&#x27;, &#x27;last_login&#x27;: &#x27;2021-01-26T18:01:58.381922Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T11:00:49.120736Z&#x27;}, {&#x27;id&#x27;: 5, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrian.tech.advisor@gmail.com&#x27;, &#x27;email&#x27;: &#x27;adrian.tech.advisor@gmail.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;consulting&#x27;], &#x27;manager&#x27;: 3, &#x27;nick_name&#x27;: &#x27;adiTech&#x27;, &#x27;display_name&#x27;: &#x27;adiTech&#x27;, &#x27;manager_name&#x27;: &#x27;adiBD&#x27;, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: &#x27;+40 773 801 584&#x27;, &#x27;last_login&#x27;: &#x27;2021-01-26T17:47:11.026019Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T11:03:42.938331Z&#x27;}, {&#x27;id&#x27;: 4, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrian.tenant@gmail.com&#x27;, &#x27;email&#x27;: &#x27;adrian.tenant@gmail.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;boast_manager&#x27;, &#x27;boast_partner&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;adiTenAdmin&#x27;, &#x27;display_name&#x27;: &#x27;adiTenAdmin&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: &#x27;+40773801584&#x27;, &#x27;last_login&#x27;: &#x27;2021-01-26T17:59:48.513296Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T11:02:33.124117Z&#x27;}, {&#x27;id&#x27;: 6, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrianabonei@yahoo.com&#x27;, &#x27;email&#x27;: &#x27;adrianabonei@yahoo.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;, &#x27;tenant_tr&#x27;, &#x27;tenant_fr&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;adiUser&#x27;, &#x27;display_name&#x27;: &#x27;adiUser&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: &#x27;2021-01-26T18:08:49.321321Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T11:04:24.843910Z&#x27;}, {&#x27;id&#x27;: 11, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adyciungu1@aol.com&#x27;, &#x27;email&#x27;: &#x27;adyciungu1@aol.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;, &#x27;tenant_tr&#x27;, &#x27;tenant_fr&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;aol2&#x27;, &#x27;display_name&#x27;: &#x27;aol2&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-01-04T13:40:41.915022Z&#x27;}, {&#x27;id&#x27;: 9, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrian.abonei@aol.com&#x27;, &#x27;email&#x27;: &#x27;adrian.abonei@aol.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;, &#x27;tenant_tr&#x27;, &#x27;tenant_fr&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;aolUser&#x27;, &#x27;display_name&#x27;: &#x27;aolUser&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: &#x27;2020-11-18T14:34:00.776193Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-11-18T13:07:10.141594Z&#x27;}, {&#x27;id&#x27;: 59, &#x27;first_name&#x27;: &#x27;First User&#x27;, &#x27;last_name&#x27;: &#x27;Last&#x27;, &#x27;username&#x27;: &#x27;testuser_xswucwtyxf@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;testuser_xswucwtyxf@boastcapital.com&#x27;, &#x27;is_active&#x27;: False, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;nickname&#x27;, &#x27;display_name&#x27;: &#x27;nickname&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: &#x27;http://badger.boast.net:8080&#x27;, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-02-01T13:07:07.956389Z&#x27;}, {&#x27;id&#x27;: 60, &#x27;first_name&#x27;: &#x27;First User&#x27;, &#x27;last_name&#x27;: &#x27;Last&#x27;, &#x27;username&#x27;: &#x27;testuser_diqbpseakc@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;testuser_diqbpseakc@boastcapital.com&#x27;, &#x27;is_active&#x27;: False, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;nickname&#x27;, &#x27;display_name&#x27;: &#x27;nickname&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: &#x27;http://badger.boast.net:8080&#x27;, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-02-01T13:11:17.423163Z&#x27;}, {&#x27;id&#x27;: 61, &#x27;first_name&#x27;: &#x27;First User&#x27;, &#x27;last_name&#x27;: &#x27;Last&#x27;, &#x27;username&#x27;: &#x27;testuser_dclipmmhcw@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;testuser_dclipmmhcw@boastcapital.com&#x27;, &#x27;is_active&#x27;: False, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;nickname&#x27;, &#x27;display_name&#x27;: &#x27;nickname&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: &#x27;http://badger.boast.net:8080&#x27;, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-02-01T13:13:49.457527Z&#x27;}, {&#x27;id&#x27;: 10, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adyciungu@yahoo.com&#x27;, &#x27;email&#x27;: &#x27;adyciungu@yahoo.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;, &#x27;tenant_tr&#x27;, &#x27;tenant_fr&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;yahooUser&#x27;, &#x27;display_name&#x27;: &#x27;yahooUser&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: &#x27;+40 773 801 584&#x27;, &#x27;last_login&#x27;: &#x27;2020-11-19T10:08:07.792737Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-11-19T10:06:28.466276Z&#x27;}]<br/></div></td></tr></tbody></table></body></html>

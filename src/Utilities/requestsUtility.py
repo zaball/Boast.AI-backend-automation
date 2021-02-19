@@ -35,11 +35,23 @@ class RequestUtility(object):
         # assert self.status_code == int(expected_status_code),\
         #     f'Expected status code {expected_status_code} ' \
         #     f'but got ' f'{self.status_code}'
-        # logger.debug(f"'Create user' API response: {self.rs_json}")
+        logger.debug(f"POST API response: {self.rs_json}")
 
         return self.rs_json
 
         # import pdb; pdb.set_trace()
 
-    def get(self):
-        pass
+    def get(self, endpoint, payload=None, headers=None, expected_status_code=200):
+        if not headers:
+            headers = {'Content-Type': 'application/json'}
+
+        self.url = self.base_url + endpoint
+
+        rs_api = requests.get(self.url, headers=headers, auth=credentials)
+        self.status_code = rs_api.status_code
+        self.expected_status_code = expected_status_code
+        self.rs_json = rs_api.json()
+        self.assert_status_code()
+
+        logger.debug(f"GET API response: {self.rs_json}")
+        return self.rs_json
