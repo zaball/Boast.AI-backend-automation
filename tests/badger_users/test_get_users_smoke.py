@@ -5,10 +5,9 @@ import pdb
 from boast_api_test.src.DAO.users_dao import UsersDAO
 from boast_api_test.src.helpers.user_helper import CreateUserHelper
 
-py_mark = [pytest.mark.tenants, pytest.mark.smoke]
+pytestmark = [pytest.mark.users, pytest.mark.smoke]
 
 
-@pytest.mark.smoke
 @pytest.mark.tcid03
 def test_get_all_users():
     logger.info('Fetch and display all boast users: ')
@@ -18,7 +17,6 @@ def test_get_all_users():
     assert rs_api, f"Response of the list 'all users' is empty. "
 
 
-@pytest.mark.smoke
 @pytest.mark.tcid08
 def test_get_user_by_id():
     logger.info('Fetch user by random ID: ')

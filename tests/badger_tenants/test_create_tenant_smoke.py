@@ -9,6 +9,7 @@ import logging as logger
 py_mark = [pytest.mark.tenants, pytest.mark.smoke]
 
 
+@pytest.mark.tenants
 @pytest.mark.smoke
 @pytest.mark.tcid09
 def test_create_tenant():
@@ -20,7 +21,7 @@ def test_create_tenant():
     payload['admin_name'] = 'adiAdmin'
     payload['name'] = generate_random_string()
     payload['domain'] = generate_random_string(5)
-    payload['provisioned'] = True
+    payload['provisioned'] = False
     payload['status'] = 'ACTIVE'
 
     # make the call
@@ -60,6 +61,7 @@ def test_create_tenant():
     # pdb.set_trace()
 
 
+@pytest.mark.tenants
 @pytest.mark.smoke
 @pytest.mark.tcid10
 def test_create_tenant_fail_for_existing_domain(rs_json=None):

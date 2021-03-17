@@ -8,6 +8,7 @@ import pdb
 py_mark = [pytest.mark.tenants, pytest.mark.smoke]
 
 
+@pytest.mark.tenants
 @pytest.mark.smoke
 @pytest.mark.tcid04
 def test_get_all_tenants():
@@ -18,6 +19,7 @@ def test_get_all_tenants():
     assert rs_api, f"Response of the list 'all tenants' is empty."
 
 
+@pytest.mark.tenants
 @pytest.mark.smoke
 @pytest.mark.tcid07
 def test_get_tenant_by_id():

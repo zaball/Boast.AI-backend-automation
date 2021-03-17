@@ -6,10 +6,9 @@ from boast_api_test.src.DAO.users_dao import UsersDAO
 from boast_api_test.src.Utilities.requestsUtility import RequestUtility
 import pdb
 
-py_mark = [pytest.mark.users, pytest.mark.smoke]
+pytestmark = [pytest.mark.users, pytest.mark.smoke]
 
 
-@pytest.mark.smoke
 @pytest.mark.tcid01
 def test_create_user():
     logger.info("Test: Create new user in badger")
@@ -21,12 +20,11 @@ def test_create_user():
     email = rand_info['email']
 
     # make API call
-    # need to create random nick_name, roles, mfa_enabled, etc
     user_object = CreateUserHelper()
     user_api_info = user_object.call_create_users(email=email, nick_name='nickname', roles=['tenant_user']
                                                   , mfa_enabled=True, first_name='First User', last_name='Last',
                                                   username=email, calendar_url='http://badger.boast.net:8080')
-    # pdb.set_trace()
+
     # verify the response
     assert user_api_info['email'] == email, f"Create customer api returned wrong email address. " \
                                             f"Email: {email}"
@@ -67,7 +65,6 @@ def test_create_user():
     # pdb.set_trace()
 
 
-@pytest.mark.smoke
 @pytest.mark.tcid02
 def test_create_user_fail_for_existing_email(rs_json=None):
     # get existing email from DB
@@ -91,3 +88,6 @@ def test_create_user_fail_for_existing_email(rs_json=None):
     assert str(user_api_info['email']) == error_message, f"Expected: 'This field must be unique.' Actual: " \
                                                          f"{str(user_api_info['email'])} "
     # pdb.set_trace()
+
+
+    #test test test

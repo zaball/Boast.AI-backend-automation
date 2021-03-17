@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <style>body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  /* do not increase min-width as some may use split screens */
+  min-width: 800px;
+  color: #999;
+}
+
+h1 {
+  font-size: 24px;
+  color: black;
+}
+
+h2 {
+  font-size: 16px;
+  color: black;
+}
+
+p {
+  color: black;
+}
+
+a {
+  color: #999;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/******************************
+ * SUMMARY INFORMATION
+ ******************************/
+#environment td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+}
+#environment tr:nth-child(odd) {
+  background-color: #f6f6f6;
+}
+
+/******************************
+ * TEST RESULT COLORS
+ ******************************/
+span.passed,
+.passed .col-result {
+  color: green;
+}
+
+span.skipped,
+span.xfailed,
+span.rerun,
+.skipped .col-result,
+.xfailed .col-result,
+.rerun .col-result {
+  color: orange;
+}
+
+span.error,
+span.failed,
+span.xpassed,
+.error .col-result,
+.failed .col-result,
+.xpassed .col-result {
+  color: red;
+}
+
+/******************************
+ * RESULTS TABLE
+ *
+ * 1. Table Layout
+ * 2. Extra
+ * 3. Sorting items
+ *
+ ******************************/
+/*------------------
+ * 1. Table Layout
+ *------------------*/
+#results-table {
+  border: 1px solid #e6e6e6;
+  color: #999;
+  font-size: 12px;
+  width: 100%;
+}
+#results-table th,
+#results-table td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+  text-align: left;
+}
+#results-table th {
+  font-weight: bold;
+}
+
+/*------------------
+ * 2. Extra
+ *------------------*/
+.log {
+  background-color: #e6e6e6;
+  border: 1px solid #e6e6e6;
+  color: black;
+  display: block;
+  font-family: "Courier New", Courier, monospace;
+  height: 230px;
+  overflow-y: scroll;
+  padding: 5px;
+  white-space: pre-wrap;
+}
+.log:only-child {
+  height: inherit;
+}
+
+div.image {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.image img {
+  width: 320px;
+}
+
+div.video {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.video video {
+  overflow: hidden;
+  width: 320px;
+  height: 240px;
+}
+
+.collapsed {
+  display: none;
+}
+
+.expander::after {
+  content: " (show details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.collapser::after {
+  content: " (hide details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+/*------------------
+ * 3. Sorting items
+ *------------------*/
+.sortable {
+  cursor: pointer;
+}
+
+.sort-icon {
+  font-size: 0px;
+  float: left;
+  margin-right: 5px;
+  margin-top: 5px;
+  /*triangle*/
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+.inactive .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #E6E6E6;
+}
+.asc.active .sort-icon {
+  /*finish triangle*/
+  border-bottom: 8px solid #999;
+}
+.desc.active .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #999;
+}
+</style></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>demo_report.html</h1>
+    <p>Report generated on 22-Feb-2021 at 15:55:40 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.10.0", "pytest": "6.2.1"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Linux-5.8.0-43-generic-x86_64-with-glibc2.32</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"allure-pytest": "2.8.31", "html": "3.1.1", "metadata": "1.11.0"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.8.6</td></tr></table>
+    <h2>Summary</h2>
+    <p>10 tests ran in 2.36 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">10 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_invoicing/test_get_invoices_smoke.py::test_get_all_invoices</td>
+          <td class="col-duration">0.23</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_get_invoices_smoke.py:11 Fetch and display all existing invoices: 
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;GET /api/boast_invoicing/invoices/ HTTP/1.1&quot; 200 5978
+DEBUG    root:requestsUtility.py:56 GET API response: {&#x27;count&#x27;: 9, &#x27;next&#x27;: None, &#x27;previous&#x27;: None, &#x27;results&#x27;: [{&#x27;id&#x27;: 1, &#x27;status_name&#x27;: &#x27;Tech PM&#x27;, &#x27;tenant_name&#x27;: &#x27;usa&#x27;, &#x27;type_name&#x27;: &#x27;US R&amp;D&#x27;, &#x27;previous_version&#x27;: {&#x27;state&#x27;: &#x27;FILED&#x27;, &#x27;tenant_id&#x27;: 6, &#x27;id&#x27;: 1, &#x27;type&#x27;: &#x27;US R&amp;D&#x27;, &#x27;amount&#x27;: 7520.5725, &#x27;fp_end&#x27;: &#x27;2020-12-31&#x27;, &#x27;total_credit&#x27;: 0.0, &#x27;notes&#x27;: &#x27;Automatically added invoice.&#x27;, &#x27;remaining_credit&#x27;: 0.0, &#x27;total_applied_credit&#x27;: 0.0}, &#x27;last_modification&#x27;: &#x27;2020-09-30T16:12:05.516757Z&#x27;, &#x27;all_notes&#x27;: &#x27;[{&quot;note&quot;: &quot;Automatically moved invoice into AAF state.&quot;, &quot;date&quot;: &quot;2020-09-30 16:12:05.516757+00:00&quot;, &quot;user&quot;: &quot;root&quot;}, {&quot;note&quot;: &quot;Automatically added invoice.&quot;, &quot;date&quot;: &quot;2020-09-10 11:54:14.192971+00:00&quot;, &quot;user&quot;: &quot;root&quot;}]&#x27;, &#x27;business_no&#x27;: &#x27;1234&#x27;, &#x27;state&#x27;: &#x27;TPM&#x27;, &#x27;fp_end&#x27;: &#x27;2020-12-31&#x27;, &#x27;type&#x27;: &#x27;US R&amp;D&#x27;, &#x27;amount&#x27;: &#x27;7520.57&#x27;, &#x27;remaining_credit&#x27;: &#x27;0.00&#x27;, &#x27;total_applied_credit&#x27;: &#x27;0.00&#x27;, &#x27;total_credit&#x27;: &#x27;0.00&#x27;, &#x27;notes&#x27;: &#x27;Status changed from AAF to TPM.&#x27;, &#x27;tenant&#x27;: 6}, {&#x27;id&#x27;: 2, &#x27;status_name&#x27;: &#x27;Tech PM&#x27;, &#x27;tenant_name&#x27;: &#x27;canada&#x27;, &#x27;type_name&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;previous_version&#x27;: {&#x27;state&#x27;: &#x27;FILED&#x27;, &#x27;tenant_id&#x27;: 5, &#x27;id&#x27;: 2, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: 19768.18, &#x27;fp_end&#x27;: &#x27;2020-12-31&#x27;, &#x27;total_credit&#x27;: 0.0, &#x27;notes&#x27;: &#x27;Automatically added invoice.&#x27;, &#x27;remaining_credit&#x27;: 0.0, &#x27;total_applied_credit&#x27;: 0.0}, &#x27;last_modification&#x27;: &#x27;2020-09-10T18:26:07.862198Z&#x27;, &#x27;all_notes&#x27;: &#x27;[{&quot;note&quot;: &quot;Automatically moved invoice into AAF state.&quot;, &quot;date&quot;: &quot;2020-09-10 18:26:07.862198+00:00&quot;, &quot;user&quot;: &quot;root&quot;}, {&quot;note&quot;: &quot;Automatically added invoice.&quot;, &quot;date&quot;: &quot;2020-09-10 18:25:43.240520+00:00&quot;, &quot;user&quot;: &quot;root&quot;}]&#x27;, &#x27;business_no&#x27;: &#x27;&#x27;, &#x27;state&#x27;: &#x27;TPM&#x27;, &#x27;fp_end&#x27;: &#x27;2020-12-31&#x27;, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: &#x27;19768.18&#x27;, &#x27;remaining_credit&#x27;: &#x27;0.00&#x27;, &#x27;total_applied_credit&#x27;: &#x27;0.00&#x27;, &#x27;total_credit&#x27;: &#x27;0.00&#x27;, &#x27;notes&#x27;: &#x27;Status changed from AAF to TPM.&#x27;, &#x27;tenant&#x27;: 5}, {&#x27;id&#x27;: 3, &#x27;status_name&#x27;: &#x27;Tech PM&#x27;, &#x27;tenant_name&#x27;: &#x27;canada&#x27;, &#x27;type_name&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;previous_version&#x27;: {&#x27;state&#x27;: &#x27;FILED&#x27;, &#x27;tenant_id&#x27;: 5, &#x27;id&#x27;: 3, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: 9710.3175, &#x27;fp_end&#x27;: &#x27;2011-12-31&#x27;, &#x27;total_credit&#x27;: 0.0, &#x27;notes&#x27;: &#x27;Automatically added invoice.&#x27;, &#x27;remaining_credit&#x27;: 0.0, &#x27;total_applied_credit&#x27;: 0.0}, &#x27;last_modification&#x27;: &#x27;2020-09-30T13:40:01.658251Z&#x27;, &#x27;all_notes&#x27;: &#x27;[{&quot;note&quot;: &quot;Automatically moved invoice into AAF state.&quot;, &quot;date&quot;: &quot;2020-09-30 13:40:01.658251+00:00&quot;, &quot;user&quot;: &quot;root&quot;}, {&quot;note&quot;: &quot;Automatically added invoice.&quot;, &quot;date&quot;: &quot;2020-09-30 13:39:32.779336+00:00&quot;, &quot;user&quot;: &quot;root&quot;}]&#x27;, &#x27;business_no&#x27;: &#x27;&#x27;, &#x27;state&#x27;: &#x27;TPM&#x27;, &#x27;fp_end&#x27;: &#x27;2011-12-31&#x27;, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: &#x27;9710.32&#x27;, &#x27;remaining_credit&#x27;: &#x27;0.00&#x27;, &#x27;total_applied_credit&#x27;: &#x27;0.00&#x27;, &#x27;total_credit&#x27;: &#x27;0.00&#x27;, &#x27;notes&#x27;: &#x27;Status changed from AAF to TPM.&#x27;, &#x27;tenant&#x27;: 5}, {&#x27;id&#x27;: 4, &#x27;status_name&#x27;: &#x27;Tech PM&#x27;, &#x27;tenant_name&#x27;: &#x27;usa&#x27;, &#x27;type_name&#x27;: &#x27;US R&amp;D&#x27;, &#x27;previous_version&#x27;: None, &#x27;last_modification&#x27;: None, &#x27;all_notes&#x27;: &#x27;[]&#x27;, &#x27;business_no&#x27;: &#x27;1234&#x27;, &#x27;state&#x27;: &#x27;TPM&#x27;, &#x27;fp_end&#x27;: &#x27;2020-12-31&#x27;, &#x27;type&#x27;: &#x27;US R&amp;D&#x27;, &#x27;amount&#x27;: &#x27;1234.00&#x27;, &#x27;remaining_credit&#x27;: None, &#x27;total_applied_credit&#x27;: None, &#x27;total_credit&#x27;: None, &#x27;notes&#x27;: &#x27;Status changed from AAF to TPM.&#x27;, &#x27;tenant&#x27;: 6}, {&#x27;id&#x27;: 5, &#x27;status_name&#x27;: &#x27;Tech PM&#x27;, &#x27;tenant_name&#x27;: &#x27;canada&#x27;, &#x27;type_name&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;previous_version&#x27;: None, &#x27;last_modification&#x27;: None, &#x27;all_notes&#x27;: &#x27;[]&#x27;, &#x27;business_no&#x27;: &#x27;&#x27;, &#x27;state&#x27;: &#x27;TPM&#x27;, &#x27;fp_end&#x27;: &#x27;2019-04-09&#x27;, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: &#x27;1234.00&#x27;, &#x27;remaining_credit&#x27;: None, &#x27;total_applied_credit&#x27;: None, &#x27;total_credit&#x27;: None, &#x27;notes&#x27;: &#x27;Status changed from AAF to TPM.&#x27;, &#x27;tenant&#x27;: 5}, {&#x27;id&#x27;: 6, &#x27;status_name&#x27;: &#x27;Accepted as Filed&#x27;, &#x27;tenant_name&#x27;: &#x27;canada&#x27;, &#x27;type_name&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;previous_version&#x27;: {&#x27;state&#x27;: &#x27;TPM&#x27;, &#x27;tenant_id&#x27;: 5, &#x27;id&#x27;: 6, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: 1234.0, &#x27;fp_end&#x27;: &#x27;2020-12-31&#x27;, &#x27;total_credit&#x27;: None, &#x27;notes&#x27;: &#x27;Status changed from AAF to TPM.&#x27;, &#x27;remaining_credit&#x27;: None, &#x27;total_applied_credit&#x27;: None}, &#x27;last_modification&#x27;: &#x27;2020-09-30T17:27:49.550200Z&#x27;, &#x27;all_notes&#x27;: &#x27;[{&quot;note&quot;: &quot;Invoice rejected.&quot;, &quot;date&quot;: &quot;2020-09-30 17:27:49.550200+00:00&quot;, &quot;user&quot;: &quot;adiTech&quot;}, {&quot;note&quot;: &quot;Status changed from AAF to TPM.&quot;, &quot;date&quot;: &quot;2020-09-30 17:06:50.828214+00:00&quot;, &quot;user&quot;: &quot;adiAdmin&quot;}, {&quot;note&quot;: &quot;TEST&quot;, &quot;date&quot;: &quot;2020-09-30 17:06:30.308741+00:00&quot;, &quot;user&quot;: &quot;adiAdmin&quot;}]&#x27;, &#x27;business_no&#x27;: &#x27;&#x27;, &#x27;state&#x27;: &#x27;AAF&#x27;, &#x27;fp_end&#x27;: &#x27;2020-12-31&#x27;, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: &#x27;1234.00&#x27;, &#x27;remaining_credit&#x27;: None, &#x27;total_applied_credit&#x27;: None, &#x27;total_credit&#x27;: None, &#x27;notes&#x27;: &#x27;Invoice rejected.&#x27;, &#x27;tenant&#x27;: 5}, {&#x27;id&#x27;: 7, &#x27;status_name&#x27;: &#x27;Approved&#x27;, &#x27;tenant_name&#x27;: &#x27;canada&#x27;, &#x27;type_name&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;previous_version&#x27;: {&#x27;state&#x27;: &#x27;TPM&#x27;, &#x27;tenant_id&#x27;: 5, &#x27;id&#x27;: 7, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: 1234.0, &#x27;fp_end&#x27;: &#x27;2015-12-31&#x27;, &#x27;total_credit&#x27;: None, &#x27;notes&#x27;: &#x27;Status changed from AAF to TPM.&#x27;, &#x27;remaining_credit&#x27;: None, &#x27;total_applied_credit&#x27;: None}, &#x27;last_modification&#x27;: &#x27;2020-09-30T17:27:45.662995Z&#x27;, &#x27;all_notes&#x27;: &#x27;[{&quot;note&quot;: &quot;Invoice approved.&quot;, &quot;date&quot;: &quot;2020-09-30 17:27:45.662995+00:00&quot;, &quot;user&quot;: &quot;adiTech&quot;}, {&quot;note&quot;: &quot;Status changed from AAF to TPM.&quot;, &quot;date&quot;: &quot;2020-09-30 17:12:30.177612+00:00&quot;, &quot;user&quot;: &quot;adiAdmin&quot;}, {&quot;note&quot;: &quot;test&quot;, &quot;date&quot;: &quot;2020-09-30 17:12:23.744220+00:00&quot;, &quot;user&quot;: &quot;adiAdmin&quot;}]&#x27;, &#x27;business_no&#x27;: &#x27;&#x27;, &#x27;state&#x27;: &#x27;APPROVED&#x27;, &#x27;fp_end&#x27;: &#x27;2015-12-31&#x27;, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: &#x27;1234.00&#x27;, &#x27;remaining_credit&#x27;: None, &#x27;total_applied_credit&#x27;: None, &#x27;total_credit&#x27;: None, &#x27;notes&#x27;: &#x27;Invoice approved.&#x27;, &#x27;tenant&#x27;: 5}, {&#x27;id&#x27;: 8, &#x27;status_name&#x27;: &#x27;Accepted as Filed&#x27;, &#x27;tenant_name&#x27;: &#x27;taxform&#x27;, &#x27;type_name&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;previous_version&#x27;: None, &#x27;last_modification&#x27;: None, &#x27;all_notes&#x27;: &#x27;[{&quot;note&quot;: &quot;test invoice client&quot;, &quot;date&quot;: &quot;2020-10-16 13:17:22.300869+00:00&quot;, &quot;user&quot;: &quot;adiAdmin&quot;}]&#x27;, &#x27;business_no&#x27;: &#x27;&#x27;, &#x27;state&#x27;: &#x27;AAF&#x27;, &#x27;fp_end&#x27;: &#x27;2020-12-31&#x27;, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: &#x27;1234.00&#x27;, &#x27;remaining_credit&#x27;: None, &#x27;total_applied_credit&#x27;: None, &#x27;total_credit&#x27;: None, &#x27;notes&#x27;: &#x27;test invoice client&#x27;, &#x27;tenant&#x27;: 7}, {&#x27;id&#x27;: 9, &#x27;status_name&#x27;: &#x27;Accepted as Filed&#x27;, &#x27;tenant_name&#x27;: &#x27;test&#x27;, &#x27;type_name&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;previous_version&#x27;: None, &#x27;last_modification&#x27;: None, &#x27;all_notes&#x27;: &#x27;[{&quot;note&quot;: &quot;test removing user crashes invoices&quot;, &quot;date&quot;: &quot;2020-10-28 17:31:12.140347+00:00&quot;, &quot;user&quot;: &quot;Unknown&quot;}]&#x27;, &#x27;business_no&#x27;: &#x27;1234512345&#x27;, &#x27;state&#x27;: &#x27;AAF&#x27;, &#x27;fp_end&#x27;: &#x27;2020-12-31&#x27;, &#x27;type&#x27;: &#x27;SR&amp;ED&#x27;, &#x27;amount&#x27;: &#x27;1234.00&#x27;, &#x27;remaining_credit&#x27;: None, &#x27;total_applied_credit&#x27;: None, &#x27;total_credit&#x27;: None, &#x27;notes&#x27;: &#x27;test removing user crashes invoices&#x27;, &#x27;tenant&#x27;: 3}]}<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_logs(provisioning)/test_get_logs_smoke.py::test_get_all_logs</td>
+          <td class="col-duration">0.15</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_get_logs_smoke.py:11 Fetch and display all boast logs: 
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;GET /api/apputils/backgroundtask/ HTTP/1.1&quot; 200 9183
+DEBUG    root:requestsUtility.py:56 GET API response: [{&#x27;id&#x27;: 26, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;ustax&#x27;, &#x27;description&#x27;: &#x27;Provision tenant ustax&#x27;, &#x27;created&#x27;: &#x27;2021-02-17T13:16:37.915630Z&#x27;, &#x27;started&#x27;: &#x27;2021-02-17T13:16:38.053388Z&#x27;, &#x27;finished&#x27;: &#x27;2021-02-17T13:18:52.025068Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 25, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;data&#x27;, &#x27;description&#x27;: &#x27;Provision tenant data&#x27;, &#x27;created&#x27;: &#x27;2021-01-26T12:40:18.410316Z&#x27;, &#x27;started&#x27;: &#x27;2021-01-26T12:40:18.594698Z&#x27;, &#x27;finished&#x27;: &#x27;2021-01-26T12:42:23.146984Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 24, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;data&#x27;, &#x27;description&#x27;: &#x27;Provision tenant data&#x27;, &#x27;created&#x27;: &#x27;2021-01-26T12:34:28.127224Z&#x27;, &#x27;started&#x27;: &#x27;2021-01-26T12:36:32.121782Z&#x27;, &#x27;finished&#x27;: &#x27;2021-01-26T12:36:32.589683Z&#x27;, &#x27;status&#x27;: &#x27;FAILED&#x27;, &#x27;failure_description&#x27;: &#x27;&#x27;, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 23, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;time&#x27;, &#x27;description&#x27;: &#x27;Provision tenant time&#x27;, &#x27;created&#x27;: &#x27;2020-10-20T16:47:16.713940Z&#x27;, &#x27;started&#x27;: &#x27;2020-10-20T16:47:16.832759Z&#x27;, &#x27;finished&#x27;: &#x27;2020-10-20T16:49:26.784373Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 22, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;gusto&#x27;, &#x27;description&#x27;: &#x27;Provision tenant gusto&#x27;, &#x27;created&#x27;: &#x27;2020-10-09T18:57:40.789675Z&#x27;, &#x27;started&#x27;: &#x27;2020-10-09T18:57:40.951394Z&#x27;, &#x27;finished&#x27;: &#x27;2020-10-09T19:00:09.696587Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 21, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;taxform&#x27;, &#x27;description&#x27;: &#x27;Provision tenant taxform&#x27;, &#x27;created&#x27;: &#x27;2020-10-08T12:54:32.655708Z&#x27;, &#x27;started&#x27;: &#x27;2020-10-08T12:54:32.790401Z&#x27;, &#x27;finished&#x27;: &#x27;2020-10-08T12:57:14.422928Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 20, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test74910122879271&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test74910122879271&#x27;, &#x27;created&#x27;: &#x27;2020-09-14T13:41:08.580932Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-14T13:41:08.694949Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-14T13:43:38.040521Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 19, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test81409629816735&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test81409629816735&#x27;, &#x27;created&#x27;: &#x27;2020-09-14T13:01:51.189688Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-14T13:01:51.291677Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-14T13:04:22.985325Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 18, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test67994768851752&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test67994768851752&#x27;, &#x27;created&#x27;: &#x27;2020-09-14T12:54:23.216169Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-14T12:54:23.345366Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-14T12:56:53.242562Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 17, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test80228704431297&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test80228704431297&#x27;, &#x27;created&#x27;: &#x27;2020-09-14T12:49:32.182874Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-14T12:49:32.265868Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-14T12:52:02.034824Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 16, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test36754525288659&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test36754525288659&#x27;, &#x27;created&#x27;: &#x27;2020-09-14T12:26:55.219382Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-14T12:26:55.361932Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-14T12:29:24.151045Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 15, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;peer usa&#x27;, &#x27;description&#x27;: &#x27;Provision tenant peer usa&#x27;, &#x27;created&#x27;: &#x27;2020-09-10T09:52:01.889395Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-10T09:52:02.017394Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-10T09:54:43.751001Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 14, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test20886526800432&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test20886526800432&#x27;, &#x27;created&#x27;: &#x27;2020-09-10T09:46:08.169694Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-10T09:46:08.293250Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-10T09:48:55.752080Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 13, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test66510428843150&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test66510428843150&#x27;, &#x27;created&#x27;: &#x27;2020-09-10T09:41:25.941191Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-10T09:41:26.054531Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-10T09:44:12.659964Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 12, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test54839471291393&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test54839471291393&#x27;, &#x27;created&#x27;: &#x27;2020-09-10T09:37:11.820873Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-10T09:37:12.007527Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-10T09:39:55.180244Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 11, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test47308720900356&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test47308720900356&#x27;, &#x27;created&#x27;: &#x27;2020-09-06T16:25:32.960935Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-06T16:25:33.046070Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-06T16:28:00.359197Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 10, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test83786089517590&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test83786089517590&#x27;, &#x27;created&#x27;: &#x27;2020-09-06T16:17:45.431514Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-06T16:17:45.521817Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-06T16:20:12.803124Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 9, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test55367802256565&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test55367802256565&#x27;, &#x27;created&#x27;: &#x27;2020-09-06T16:12:17.941788Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-06T16:12:18.063938Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-06T16:14:45.724491Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 8, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test43560068889822&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test43560068889822&#x27;, &#x27;created&#x27;: &#x27;2020-09-06T16:04:10.099701Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-06T16:04:10.192894Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-06T16:06:37.651062Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 7, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test21855106044975&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test21855106044975&#x27;, &#x27;created&#x27;: &#x27;2020-09-06T15:56:14.818036Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-06T15:56:14.958657Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-06T15:58:43.010964Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 6, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test26004951021543&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test26004951021543&#x27;, &#x27;created&#x27;: &#x27;2020-09-06T15:32:13.683352Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-06T15:32:13.797038Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-06T15:34:41.727318Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 5, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;usa&#x27;, &#x27;description&#x27;: &#x27;Provision tenant usa&#x27;, &#x27;created&#x27;: &#x27;2020-09-04T10:44:14.783257Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-04T10:44:14.906188Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-04T10:46:49.731550Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 4, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;canada&#x27;, &#x27;description&#x27;: &#x27;Provision tenant canada&#x27;, &#x27;created&#x27;: &#x27;2020-09-04T10:37:46.655703Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-04T10:37:46.784190Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-04T10:40:19.582569Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 3, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;september2020&#x27;, &#x27;description&#x27;: &#x27;Provision tenant september2020&#x27;, &#x27;created&#x27;: &#x27;2020-09-04T10:33:50.610771Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-04T10:33:50.714498Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-04T10:36:22.529979Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 2, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test&#x27;, &#x27;created&#x27;: &#x27;2020-09-02T11:06:25.468606Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-02T11:06:25.582522Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-02T11:08:58.553418Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}, {&#x27;id&#x27;: 1, &#x27;sub_tasks&#x27;: [], &#x27;logs&#x27;: [], &#x27;name&#x27;: &#x27;test63490986477833&#x27;, &#x27;description&#x27;: &#x27;Provision tenant test63490986477833&#x27;, &#x27;created&#x27;: &#x27;2020-09-02T10:33:36.390544Z&#x27;, &#x27;started&#x27;: &#x27;2020-09-02T10:33:36.532838Z&#x27;, &#x27;finished&#x27;: &#x27;2020-09-02T10:36:12.857832Z&#x27;, &#x27;status&#x27;: &#x27;SUCCESS&#x27;, &#x27;failure_description&#x27;: None, &#x27;task_type&#x27;: &#x27;PROVISION&#x27;, &#x27;oauth_client_id&#x27;: None, &#x27;sub_task_type&#x27;: None, &#x27;master&#x27;: None}]<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_tenants/test_create_tenant_smoke.py::test_create_tenant</td>
+          <td class="col-duration">0.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_create_tenant_smoke.py:15 Test: Create new tenant in badger
+DEBUG    root:genericUtilities.py:26 Generating random... : 
+DEBUG    root:genericUtilities.py:26 Generating random... : 
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;POST /api/tenants/tenant/ HTTP/1.1&quot; 201 378
+DEBUG    root:requestsUtility.py:38 POST API response: {&#x27;id&#x27;: 15, &#x27;url&#x27;: &#x27;http://testjvzpd.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: None, &#x27;primary_advisor_name&#x27;: None, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: None, &#x27;business_dev_name&#x27;: None, &#x27;name&#x27;: &#x27;testmtryvytzzz&#x27;, &#x27;db_name&#x27;: &#x27;testjvzpd&#x27;, &#x27;domain&#x27;: &#x27;testjvzpd&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}
+DEBUG    root:db_utility.py:21 Executing SELECT * FROM badger.tenants_tenant WHERE ID = 15<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_tenants/test_create_tenant_smoke.py::test_create_tenant_fail_for_existing_domain</td>
+          <td class="col-duration">0.08</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>DEBUG    root:db_utility.py:21 Executing SELECT * FROM badger.tenants_tenant
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;POST /api/tenants/tenant/ HTTP/1.1&quot; 400 57
+DEBUG    root:requestsUtility.py:38 POST API response: {&#x27;domain&#x27;: [&#x27;Client with this Subdomain already exists.&#x27;]}<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_tenants/test_get_tenants_smoke.py::test_get_all_tenants</td>
+          <td class="col-duration">0.09</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_get_tenants_smoke.py:14 Fetch and display all boast tenants: 
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;GET /api/tenants/tenant/ HTTP/1.1&quot; 200 4011
+DEBUG    root:requestsUtility.py:56 GET API response: [{&#x27;id&#x27;: 3, &#x27;url&#x27;: &#x27;http://test.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: 5, &#x27;primary_advisor_name&#x27;: &#x27;adiTech&#x27;, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: 3, &#x27;business_dev_name&#x27;: &#x27;adiBD&#x27;, &#x27;name&#x27;: &#x27;test&#x27;, &#x27;db_name&#x27;: &#x27;test&#x27;, &#x27;domain&#x27;: &#x27;test&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 5, &#x27;url&#x27;: &#x27;http://canada.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: 5, &#x27;primary_advisor_name&#x27;: &#x27;adiTech&#x27;, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: 3, &#x27;business_dev_name&#x27;: &#x27;adiBD&#x27;, &#x27;name&#x27;: &#x27;canada&#x27;, &#x27;db_name&#x27;: &#x27;canada&#x27;, &#x27;domain&#x27;: &#x27;canada&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 6, &#x27;url&#x27;: &#x27;http://usa.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: 5, &#x27;primary_advisor_name&#x27;: &#x27;adiTech&#x27;, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: 3, &#x27;business_dev_name&#x27;: &#x27;adiBD&#x27;, &#x27;name&#x27;: &#x27;usa&#x27;, &#x27;db_name&#x27;: &#x27;usa&#x27;, &#x27;domain&#x27;: &#x27;usa&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 7, &#x27;url&#x27;: &#x27;http://taxform.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: None, &#x27;primary_advisor_name&#x27;: None, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: 3, &#x27;business_dev_name&#x27;: &#x27;adiBD&#x27;, &#x27;name&#x27;: &#x27;taxform&#x27;, &#x27;db_name&#x27;: &#x27;taxform&#x27;, &#x27;domain&#x27;: &#x27;taxform&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 8, &#x27;url&#x27;: &#x27;http://gusto.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: None, &#x27;primary_advisor_name&#x27;: None, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: None, &#x27;business_dev_name&#x27;: None, &#x27;name&#x27;: &#x27;gusto&#x27;, &#x27;db_name&#x27;: &#x27;gusto&#x27;, &#x27;domain&#x27;: &#x27;gusto&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: False, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 9, &#x27;url&#x27;: &#x27;http://time.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: 5, &#x27;primary_advisor_name&#x27;: &#x27;adiTech&#x27;, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: 3, &#x27;business_dev_name&#x27;: &#x27;adiBD&#x27;, &#x27;name&#x27;: &#x27;time&#x27;, &#x27;db_name&#x27;: &#x27;time&#x27;, &#x27;domain&#x27;: &#x27;time&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 11, &#x27;url&#x27;: &#x27;http://datapage.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: 5, &#x27;primary_advisor_name&#x27;: &#x27;adiTech&#x27;, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: None, &#x27;business_dev_name&#x27;: None, &#x27;name&#x27;: &#x27;data&#x27;, &#x27;db_name&#x27;: &#x27;datapage&#x27;, &#x27;domain&#x27;: &#x27;datapage&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 12, &#x27;url&#x27;: &#x27;http://ustax.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: None, &#x27;primary_advisor_name&#x27;: None, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: None, &#x27;business_dev_name&#x27;: None, &#x27;name&#x27;: &#x27;ustax&#x27;, &#x27;db_name&#x27;: &#x27;ustax&#x27;, &#x27;domain&#x27;: &#x27;ustax&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 13, &#x27;url&#x27;: &#x27;http://testfiolf.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: None, &#x27;primary_advisor_name&#x27;: None, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: None, &#x27;business_dev_name&#x27;: None, &#x27;name&#x27;: &#x27;testswcgqudooy&#x27;, &#x27;db_name&#x27;: &#x27;testfiolf&#x27;, &#x27;domain&#x27;: &#x27;testfiolf&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 14, &#x27;url&#x27;: &#x27;http://testpyrrl.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: None, &#x27;primary_advisor_name&#x27;: None, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: None, &#x27;business_dev_name&#x27;: None, &#x27;name&#x27;: &#x27;testmnagihxwmk&#x27;, &#x27;db_name&#x27;: &#x27;testpyrrl&#x27;, &#x27;domain&#x27;: &#x27;testpyrrl&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}, {&#x27;id&#x27;: 15, &#x27;url&#x27;: &#x27;http://testjvzpd.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: None, &#x27;primary_advisor_name&#x27;: None, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: None, &#x27;business_dev_name&#x27;: None, &#x27;name&#x27;: &#x27;testmtryvytzzz&#x27;, &#x27;db_name&#x27;: &#x27;testjvzpd&#x27;, &#x27;domain&#x27;: &#x27;testjvzpd&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}]<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_tenants/test_get_tenants_smoke.py::test_get_tenant_by_id</td>
+          <td class="col-duration">0.09</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_get_tenants_smoke.py:24 Fetch tenant by random ID: 
+DEBUG    root:db_utility.py:21 Executing SELECT * FROM badger.tenants_tenant
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;GET /api/tenants/tenant/9/ HTTP/1.1&quot; 200 354
+DEBUG    root:requestsUtility.py:56 GET API response: {&#x27;id&#x27;: 9, &#x27;url&#x27;: &#x27;http://time.boast.net:8080/&#x27;, &#x27;status_name&#x27;: &#x27;Active&#x27;, &#x27;admin_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;primary_advisor&#x27;: 5, &#x27;primary_advisor_name&#x27;: &#x27;adiTech&#x27;, &#x27;secondary_advisor&#x27;: None, &#x27;secondary_advisor_name&#x27;: None, &#x27;business_dev&#x27;: 3, &#x27;business_dev_name&#x27;: &#x27;adiBD&#x27;, &#x27;name&#x27;: &#x27;time&#x27;, &#x27;db_name&#x27;: &#x27;time&#x27;, &#x27;domain&#x27;: &#x27;time&#x27;, &#x27;manager&#x27;: False, &#x27;provisioned&#x27;: True, &#x27;status&#x27;: &#x27;ACTIVE&#x27;, &#x27;admin&#x27;: 2}<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_users/test_create_user_smoke.py::test_create_user</td>
+          <td class="col-duration">0.88</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_create_user_smoke.py:15 Test: Create new user in badger
+DEBUG    root:genericUtilities.py:7 Generating random user email: 
+DEBUG    root:genericUtilities.py:20 Randomly generated email: {&#x27;email&#x27;: &#x27;testuser_eguuhphjyh@boastcapital.com&#x27;}
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;POST /api/users/user/ HTTP/1.1&quot; 201 466
+DEBUG    root:requestsUtility.py:38 POST API response: {&#x27;id&#x27;: 14, &#x27;first_name&#x27;: &#x27;First User&#x27;, &#x27;last_name&#x27;: &#x27;Last&#x27;, &#x27;username&#x27;: &#x27;testuser_eguuhphjyh@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;testuser_eguuhphjyh@boastcapital.com&#x27;, &#x27;is_active&#x27;: False, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;nickname&#x27;, &#x27;display_name&#x27;: &#x27;nickname&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: &#x27;http://badger.boast.net:8080&#x27;, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-02-22T13:55:39.425846Z&#x27;}
+DEBUG    root:db_utility.py:21 Executing SELECT * FROM badger.account_emailaddress AS mail INNER JOIN badger.users_profile AS user ON mail.user_id = user.user_id WHERE email = &#x27;testuser_eguuhphjyh@boastcapital.com&#x27;;<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_users/test_create_user_smoke.py::test_create_user_fail_for_existing_email</td>
+          <td class="col-duration">0.08</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>DEBUG    root:db_utility.py:21 Executing SELECT * FROM badger.account_emailaddress AS mail INNER JOIN badger.users_profile AS user ON mail.user_id = user.user_id;
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;POST /api/users/user/ HTTP/1.1&quot; 400 40
+DEBUG    root:requestsUtility.py:38 POST API response: {&#x27;email&#x27;: [&#x27;This field must be unique.&#x27;]}<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_users/test_get_users_smoke.py::test_get_all_users</td>
+          <td class="col-duration">0.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_get_users_smoke.py:14 Fetch and display all boast users: 
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;GET /api/users/user/ HTTP/1.1&quot; 200 5262
+DEBUG    root:requestsUtility.py:56 GET API response: [{&#x27;id&#x27;: 2, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrian.abonei.boast@gmail.com&#x27;, &#x27;email&#x27;: &#x27;adrian.abonei.boast@gmail.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;boast_admin&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;display_name&#x27;: &#x27;adiAdmin&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: &#x27;https://lh4.googleusercontent.com/-loz8uJKrlNA/AAAAAAAAAAI/AAAAAAAAAAA/AMZuuckJ7fDKGIg5n6TfX0ldvAzuGHiJcA/s96-c/photo.jpg&#x27;, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: &#x27;+40 773 801 584&#x27;, &#x27;last_login&#x27;: &#x27;2021-02-10T15:08:48.661835Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T10:58:34.839407Z&#x27;}, {&#x27;id&#x27;: 3, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;aabonei@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;aabonei@boastcapital.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;boast_bd&#x27;, &#x27;boast_ar&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;adiBD&#x27;, &#x27;display_name&#x27;: &#x27;adiBD&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: &#x27;https://lh3.googleusercontent.com/a-/AOh14Ghyo3uPV-sBri33az1aFcHHlKBt9wwohfs1I1yV=s96-c&#x27;, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: &#x27;+40 773 801 584&#x27;, &#x27;last_login&#x27;: &#x27;2021-01-26T18:01:58.381922Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T11:00:49.120736Z&#x27;}, {&#x27;id&#x27;: 5, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrian.tech.advisor@gmail.com&#x27;, &#x27;email&#x27;: &#x27;adrian.tech.advisor@gmail.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;consulting&#x27;], &#x27;manager&#x27;: 3, &#x27;nick_name&#x27;: &#x27;adiTech&#x27;, &#x27;display_name&#x27;: &#x27;adiTech&#x27;, &#x27;manager_name&#x27;: &#x27;adiBD&#x27;, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: &#x27;+40 773 801 584&#x27;, &#x27;last_login&#x27;: &#x27;2021-01-26T17:47:11.026019Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T11:03:42.938331Z&#x27;}, {&#x27;id&#x27;: 4, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrian.tenant@gmail.com&#x27;, &#x27;email&#x27;: &#x27;adrian.tenant@gmail.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;boast_manager&#x27;, &#x27;boast_partner&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;adiTenAdmin&#x27;, &#x27;display_name&#x27;: &#x27;adiTenAdmin&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: &#x27;+40773801584&#x27;, &#x27;last_login&#x27;: &#x27;2021-01-26T17:59:48.513296Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T11:02:33.124117Z&#x27;}, {&#x27;id&#x27;: 6, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrianabonei@yahoo.com&#x27;, &#x27;email&#x27;: &#x27;adrianabonei@yahoo.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;, &#x27;tenant_tr&#x27;, &#x27;tenant_fr&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;adiUser&#x27;, &#x27;display_name&#x27;: &#x27;adiUser&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: False, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: &#x27;2021-01-26T18:08:49.321321Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-09-02T11:04:24.843910Z&#x27;}, {&#x27;id&#x27;: 11, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adyciungu1@aol.com&#x27;, &#x27;email&#x27;: &#x27;adyciungu1@aol.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;, &#x27;tenant_tr&#x27;, &#x27;tenant_fr&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;aol2&#x27;, &#x27;display_name&#x27;: &#x27;aol2&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-01-04T13:40:41.915022Z&#x27;}, {&#x27;id&#x27;: 9, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adrian.abonei@aol.com&#x27;, &#x27;email&#x27;: &#x27;adrian.abonei@aol.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;, &#x27;tenant_tr&#x27;, &#x27;tenant_fr&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;aolUser&#x27;, &#x27;display_name&#x27;: &#x27;aolUser&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: &#x27;+40 773 801 584&#x27;, &#x27;last_login&#x27;: &#x27;2021-02-09T13:36:38.431223Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-11-18T13:07:10.141594Z&#x27;}, {&#x27;id&#x27;: 12, &#x27;first_name&#x27;: &#x27;First User&#x27;, &#x27;last_name&#x27;: &#x27;Last&#x27;, &#x27;username&#x27;: &#x27;testuser_azeulurtek@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;testuser_azeulurtek@boastcapital.com&#x27;, &#x27;is_active&#x27;: False, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;nickname&#x27;, &#x27;display_name&#x27;: &#x27;nickname&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: &#x27;http://badger.boast.net:8080&#x27;, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-02-22T13:47:57.115212Z&#x27;}, {&#x27;id&#x27;: 13, &#x27;first_name&#x27;: &#x27;First User&#x27;, &#x27;last_name&#x27;: &#x27;Last&#x27;, &#x27;username&#x27;: &#x27;testuser_lmicamareh@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;testuser_lmicamareh@boastcapital.com&#x27;, &#x27;is_active&#x27;: False, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;nickname&#x27;, &#x27;display_name&#x27;: &#x27;nickname&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: &#x27;http://badger.boast.net:8080&#x27;, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-02-22T13:48:13.918869Z&#x27;}, {&#x27;id&#x27;: 14, &#x27;first_name&#x27;: &#x27;First User&#x27;, &#x27;last_name&#x27;: &#x27;Last&#x27;, &#x27;username&#x27;: &#x27;testuser_eguuhphjyh@boastcapital.com&#x27;, &#x27;email&#x27;: &#x27;testuser_eguuhphjyh@boastcapital.com&#x27;, &#x27;is_active&#x27;: False, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;nickname&#x27;, &#x27;display_name&#x27;: &#x27;nickname&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: &#x27;http://badger.boast.net:8080&#x27;, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-02-22T13:55:39.425846Z&#x27;}, {&#x27;id&#x27;: 10, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adyciungu@yahoo.com&#x27;, &#x27;email&#x27;: &#x27;adyciungu@yahoo.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;, &#x27;tenant_tr&#x27;, &#x27;tenant_fr&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;yahooUser&#x27;, &#x27;display_name&#x27;: &#x27;yahooUser&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: &#x27;+40 773 801 584&#x27;, &#x27;last_login&#x27;: &#x27;2020-11-19T10:08:07.792737Z&#x27;, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2020-11-19T10:06:28.466276Z&#x27;}]<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">tests/badger_users/test_get_users_smoke.py::test_get_user_by_id</td>
+          <td class="col-duration">0.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_get_users_smoke.py:24 Fetch user by random ID: 
+DEBUG    root:db_utility.py:21 Executing SELECT * FROM badger.account_emailaddress AS mail INNER JOIN badger.users_profile AS user ON mail.user_id = user.user_id;
+DEBUG    urllib3.connectionpool:connectionpool.py:226 Starting new HTTP connection (1): badger.boast.net:8080
+DEBUG    urllib3.connectionpool:connectionpool.py:433 http://badger.boast.net:8080 &quot;GET /api/users/user/11/ HTTP/1.1&quot; 200 417
+DEBUG    root:requestsUtility.py:56 GET API response: {&#x27;id&#x27;: 11, &#x27;first_name&#x27;: &#x27;Adrian&#x27;, &#x27;last_name&#x27;: &#x27;Abonei&#x27;, &#x27;username&#x27;: &#x27;adyciungu1@aol.com&#x27;, &#x27;email&#x27;: &#x27;adyciungu1@aol.com&#x27;, &#x27;is_active&#x27;: True, &#x27;roles&#x27;: [&#x27;tenant_user&#x27;, &#x27;tenant_tr&#x27;, &#x27;tenant_fr&#x27;], &#x27;manager&#x27;: None, &#x27;nick_name&#x27;: &#x27;aol2&#x27;, &#x27;display_name&#x27;: &#x27;aol2&#x27;, &#x27;manager_name&#x27;: None, &#x27;img&#x27;: None, &#x27;calendar_url&#x27;: None, &#x27;mfa_enabled&#x27;: True, &#x27;phone&#x27;: None, &#x27;last_login&#x27;: None, &#x27;is_superuser&#x27;: False, &#x27;is_staff&#x27;: False, &#x27;date_joined&#x27;: &#x27;2021-01-04T13:40:41.915022Z&#x27;}<br/></div></td></tr></tbody></table></body></html>

@@ -4,8 +4,8 @@ import logging as logger
 import pdb
 
 
-@pytest.mark.smoke
 @pytest.mark.logs
+@pytest.mark.smoke
 @pytest.mark.tcid06
 def test_get_all_logs():
     logger.info('Fetch and display all boast logs: ')

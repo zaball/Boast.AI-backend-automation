@@ -1,2 +1,0 @@
-checkout as guest
-111111
